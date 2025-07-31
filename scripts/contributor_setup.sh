@@ -859,24 +859,30 @@ function ensure_kube_linter_if_needed() {
                 fi
                 util.log.info "✅ kube-linter installed successfully via Homebrew"
             else
-                # ...existing Linux installation code...
-                local kube_linter_version
+                # Initialize with fallback version to ensure variable is always set
+                local kube_linter_version="v0.6.8"
+
                 util.log.info "⏳ Fetching latest kube-linter version from GitHub API..."
                 if command -v curl &>/dev/null; then
-                    kube_linter_version=$(curl -s https://api.github.com/repos/stackrox/kube-linter/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+                    local fetched_version
+                    fetched_version=$(curl -s https://api.github.com/repos/stackrox/kube-linter/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+                    if [ -n "$fetched_version" ] && [ "$fetched_version" != "null" ]; then
+                        kube_linter_version="$fetched_version"
+                    fi
                 elif command -v wget &>/dev/null; then
-                    kube_linter_version=$(wget -qO- https://api.github.com/repos/stackrox/kube-linter/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+                    local fetched_version
+                    fetched_version=$(wget -qO- https://api.github.com/repos/stackrox/kube-linter/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+                    if [ -n "$fetched_version" ] && [ "$fetched_version" != "null" ]; then
+                        kube_linter_version="$fetched_version"
+                    fi
                 else
-                    util.log.warn "Neither curl nor wget available to fetch latest version, using fallback version v0.6.8"
-                    kube_linter_version="v0.6.8"
+                    util.log.warn "Neither curl nor wget available to fetch latest version, using fallback version $kube_linter_version"
                 fi
 
-                # Fallback to a known working version if API call failed
-                if [ -z "$kube_linter_version" ] || [ "$kube_linter_version" = "null" ]; then
-                    util.log.warn "Failed to fetch latest version from GitHub API, using fallback version v0.6.8"
-                    kube_linter_version="v0.6.8"
+                # Log the version being used (either fetched or fallback)
+                if [ "$kube_linter_version" = "v0.6.8" ]; then
+                    util.log.warn "Using fallback version $kube_linter_version (API fetch failed or unavailable)"
                 fi
-
                 util.log.info "Using kube-linter version: $kube_linter_version"
                 local kube_linter_url="https://github.com/stackrox/kube-linter/releases/download/${kube_linter_version}/kube-linter-linux.tar.gz"
                 local install_dir="$HOME/.local/bin"
