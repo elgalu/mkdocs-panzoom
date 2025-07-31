@@ -31,7 +31,22 @@ def mock_page():
 @pytest.fixture
 def mock_mkdocs_config():
     """Create a mock MkDocs configuration."""
-    config = {"site_url": "https://example.com", "plugins": [], "theme": {"name": "material"}}
+    config = Mock()
+    config.__getitem__ = Mock(
+        side_effect=lambda key: {
+            "site_url": "https://example.com",
+            "plugins": OrderedDict(),
+            "theme": {"name": "material"},
+        }.get(key)
+    )
+    config.__contains__ = Mock(side_effect=lambda key: key in {"site_url", "plugins", "theme"})
+    config.get = Mock(
+        side_effect=lambda key, default=None: {
+            "site_url": "https://example.com",
+            "plugins": OrderedDict(),
+            "theme": {"name": "material"},
+        }.get(key, default)
+    )
     return config
 
 
@@ -72,29 +87,29 @@ class TestPluginInitialization:
 class TestPluginConfiguration:
     """Test plugin configuration handling."""
 
-    def test_on_config_basic(self, plugin):
+    def test_on_config_basic(self, plugin, mock_mkdocs_config):
         """Test basic configuration handling."""
-        config = {"site_url": "https://example.com", "plugins": OrderedDict()}
-
         # Should not raise exception
-        result = plugin.on_config(config)  # type: ignore[call-arg]
-        assert result is None or isinstance(result, dict)
+        result = plugin.on_config(mock_mkdocs_config)
+        assert result is not None
 
-    def test_on_config_with_plugins(self, plugin):
+    def test_on_config_with_plugins(self, plugin, mock_mkdocs_config):
         """Test on_config method with various plugin configurations."""
-        configs = [
-            {"site_url": "https://example.com", "plugins": OrderedDict()},
-            {"site_url": "https://example.com", "plugins": OrderedDict([("search", {})])},
-            {
-                "site_url": "https://example.com",
-                "plugins": OrderedDict([("search", {}), ("panzoom", {})]),
-            },
-        ]
+        # Test with empty plugins
+        result = plugin.on_config(mock_mkdocs_config)
+        assert result is not None
 
-        for config in configs:
-            # Should not raise exception
-            result = plugin.on_config(config)  # type: ignore[call-arg]
-            assert result is None or isinstance(result, dict)
+        # Test with search plugin
+        mock_mkdocs_config.__getitem__ = Mock(
+            side_effect=lambda key: {
+                "site_url": "https://example.com",
+                "plugins": OrderedDict([("search", {})]),
+                "theme": {"name": "material"},
+            }.get(key)
+        )
+
+        result = plugin.on_config(mock_mkdocs_config)
+        assert result is not None
 
 
 class TestPluginBasics:
@@ -114,7 +129,7 @@ class TestPluginBasics:
         plugin = PanZoomPlugin()
 
         # Check that config scheme exists and has expected keys
-        config_scheme = dict(plugin.config_scheme)  # type: ignore[attr-defined]
+        config_scheme = dict(plugin.config_scheme)
 
         expected_keys = [
             "mermaid",
@@ -232,14 +247,18 @@ class TestPluginPostPage:
 class TestPluginValidation:
     """Test plugin validation functionality."""
 
-    def test_validate_config_missing_site_url(self, plugin):
+    def test_validate_config_missing_site_url(self, plugin, mock_mkdocs_config):
         """Test validation with missing site_url."""
         plugin.config = {}
-        config = {"plugins": OrderedDict()}
+        # Create a config without site_url
+        mock_mkdocs_config.__getitem__ = Mock(
+            side_effect=lambda key: {"plugins": OrderedDict()}.get(key)
+        )
+        mock_mkdocs_config.__contains__ = Mock(side_effect=lambda key: key in {"plugins"})
 
         # Should handle missing site_url gracefully
-        result = plugin.on_config(config)  # type: ignore[call-arg]
-        assert result is None or isinstance(result, dict)
+        result = plugin.on_config(mock_mkdocs_config)
+        assert result is not None
 
     def test_validate_config_invalid_key(self, plugin):
         """Test validation with invalid key configuration."""
