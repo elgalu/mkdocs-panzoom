@@ -261,7 +261,7 @@ function activate_zoom_pan() {
             case "alt":
               return e.altKey;
             default:
-              return false && !e.button == 1;
+              return !e.button == 1;
           }
         },
         beforeMouseDown: function (e) {
@@ -273,7 +273,7 @@ function activate_zoom_pan() {
             case "alt":
               return e.altKey && !e.button == 1;
             default:
-              return false && !e.button == 1;
+              return !e.button == 1;
           }
         },
         zoomDoubleClickSpeed: 1,
