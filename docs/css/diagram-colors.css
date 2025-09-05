@@ -1,0 +1,42 @@
+/* Global diagram (Mermaid) palette supporting light & dark automatically.
+   Use classDef tokens like: startNode, stepNode, successNode, accentNode, branchMain, branchFeature
+   Example: class A startNode; class E successNode;
+*/
+:root {
+  --diag-bg-start: #e6f4fa;      /* light start */
+  --diag-bg-step: #f2f0ff;       /* light neutral */
+  --diag-bg-success: #d9ead3;    /* light success */
+  --diag-bg-accent: #b00078;     /* strong accent */
+  --diag-bg-feature: #d1199f;    /* lighter accent */
+  --diag-bg-branch-main: #888f96;
+  --diag-bg-branch-feature: #b00078;
+  --diag-fg-dark: #0b0f12;       /* dark readable text */
+  --diag-fg-light: #ffffff;      /* light readable text */
+  --diag-border-radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --diag-bg-start: #2a3b42;      /* adjust for contrast on dark */
+    --diag-bg-step: #3e3952;       /* neutral dark */
+    --diag-bg-success: #2f4a32;    /* success dark */
+    --diag-bg-accent: #d1199f;     /* accent remains vivid */
+    --diag-bg-feature: #b00078;    /* swap intensity for contrast */
+    --diag-bg-branch-main: #9aa2a8;
+    --diag-bg-branch-feature: #d1199f;
+    --diag-fg-dark: #ffffff;
+    --diag-fg-light: #ffffff;
+  }
+}
+
+/* Mermaid allows selecting nodes by class name, we map our semantic tokens */
+.mermaid .startNode > * { fill: var(--diag-bg-start) !important; stroke: var(--diag-bg-start) !important; color: var(--diag-fg-dark) !important; }
+.mermaid .stepNode > * { fill: var(--diag-bg-step) !important; stroke: var(--diag-bg-step) !important; color: var(--diag-fg-dark) !important; }
+.mermaid .successNode > * { fill: var(--diag-bg-success) !important; stroke: var(--diag-bg-success) !important; color: var(--diag-fg-dark) !important; }
+.mermaid .accentNode > * { fill: var(--diag-bg-accent) !important; stroke: var(--diag-bg-accent) !important; color: var(--diag-fg-light) !important; }
+.mermaid .featureNode > * { fill: var(--diag-bg-feature) !important; stroke: var(--diag-bg-feature) !important; color: var(--diag-fg-light) !important; }
+.mermaid .branchMain > * { fill: var(--diag-bg-branch-main) !important; stroke: var(--diag-bg-branch-main) !important; color: #0b0f12 !important; }
+.mermaid .branchFeature > * { fill: var(--diag-bg-branch-feature) !important; stroke: var(--diag-bg-branch-feature) !important; color: #ffffff !important; }
+
+/* Generic rounded corners */
+.mermaid rect, .mermaid polygon, .mermaid path { rx: var(--diag-border-radius); ry: var(--diag-border-radius); }

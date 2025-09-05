@@ -45,6 +45,21 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 
+extra_css:
+  # https://cdnjs.com/libraries/MaterialDesign-Webfont
+  - https://cdn.materialdesignicons.com/7.4.47/css/materialdesignicons.css
+  - css/mermaid.css
+  # Global dark/light aware diagram color tokens & styling
+  - css/hide-root-section.css
+
+extra_javascript:
+  # When needed offline access: download newer versions at https://unpkg.com/browse/mermaid@11.11.0/dist/
+  - extra/js/mermaid-11.11.0.min.js
+  - extra/js/refresh-on-toggle-dark-light.js
+
+extra:
+  generator: false
+
 plugins:
   - section-index
   - glightbox
