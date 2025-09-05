@@ -79,6 +79,11 @@ class TestPluginInitialization:
             "initial_zoom_level",
             "zoom_step",
             "buttons_size",
+            "auto_enable",
+            "auto_enable_threshold_lines",
+            "auto_enable_threshold_nodes",
+            "auto_enable_threshold_edges",
+            "auto_enable_threshold_chars",
         }
 
         assert set(config_dict.keys()) == expected_keys

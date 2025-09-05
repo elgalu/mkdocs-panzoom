@@ -48,16 +48,19 @@ markdown_extensions:
 plugins:
   - search
   - panzoom:
-      # images: true
-      # mermaid: true # old config
-      full_screen: true
-      always_show_hint: true
-      show_zoom_buttons: true
-      key: "alt"
-      exclude:
-        - Mermaid/excluded.md
+      auto_enable: true                 # Enable smart auto-detection (default: true)
+      auto_enable_threshold_lines: 8    # Lines threshold (default: 8)
+      auto_enable_threshold_nodes: 6    # Nodes threshold (default: 6)
+      auto_enable_threshold_edges: 5    # Edges threshold (default: 5)
+      auto_enable_threshold_chars: 200  # Character threshold (default: 200)
       include_selectors:
-        - img
-      # hint_location: top
-      hint_location: bottom
+        - ".mermaid"
+        - ".d2"
+        - "img"
+      always_show_hint: false
+      show_zoom_buttons: true
+      hint_location: "bottom"
+      key: "ctrl" # none/shift/ctrl/alt
+      full_screen: true
+      initial_zoom_level: 1.0
   - d2

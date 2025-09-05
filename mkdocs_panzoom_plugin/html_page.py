@@ -210,7 +210,19 @@ class HTMLPage:
                     # Use get_text() to extract all text content, including nested elements
                     content = code_element.get_text()
                     if content:
-                        return should_enable_panzoom(content)
+                        # Build thresholds from config if auto_enable is enabled
+                        if self.config.get("auto_enable", True):
+                            thresholds = {
+                                "lines": self.config.get("auto_enable_threshold_lines", 8),
+                                "nodes": self.config.get("auto_enable_threshold_nodes", 6),
+                                "edges": self.config.get("auto_enable_threshold_edges", 5),
+                                "total_chars": self.config.get("auto_enable_threshold_chars", 200),
+                            }
+                        else:
+                            # If auto_enable is disabled, always enable panzoom (legacy behavior)
+                            return True
+
+                        return should_enable_panzoom(content, thresholds)
 
             # For other elements (like D2, images), default to enabled
             # Could be extended in the future for other diagram types

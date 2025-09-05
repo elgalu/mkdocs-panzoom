@@ -1,8 +1,37 @@
-# Disabled Panzoom Example
+# Smart Panzoom Auto-Detection
 
-## Example with Panzoom Disabled
+The plugin now automatically detects diagram size/complexity and only enables panzoom for larger diagrams that would benefit from zoom functionality.
 
-This diagram has panzoom disabled via YAML metadata:
+## Small Diagrams (Auto-Disabled)
+
+Small/simple diagrams automatically have panzoom disabled since they don't need zoom functionality:
+
+```mermaid
+flowchart LR
+    A([Start]) --> B([End])
+```
+
+## Large Diagrams (Auto-Enabled)
+
+Complex diagrams automatically get panzoom enabled:
+
+```mermaid
+flowchart TD
+    A[Start Process] --> B{Decision Point}
+    B -->|Yes| C[Process Option 1]
+    B -->|No| D[Process Option 2]
+    C --> E[Validation Step]
+    D --> F[Alternative Step]
+    E --> G[Final Processing]
+    F --> G
+    G --> H[End Process]
+    I[Additional Node] --> J[Another Node]
+    K[Yet Another] --> L[Final Node]
+```
+
+## Manual Override: Force Disable
+
+You can explicitly disable panzoom even for large diagrams:
 
 ```mermaid
 ---
@@ -14,28 +43,56 @@ flowchart LR
     style E fill:#d9ead3,stroke:#4c6b4c,color:#111
 ```
 
-## Example with Panzoom Enabled (Default)
+## Manual Override: Force Enable
 
-This diagram has panzoom enabled by default:
-
-```mermaid
-flowchart TD
-    F([Default Behavior]) --> G([Panzoom Enabled])
-    style F fill:#fff3e0,stroke:#e65100,color:#111
-    style G fill:#e8f5e8,stroke:#2e7d32,color:#111
-```
-
-## Example with Explicit Enable
-
-This diagram explicitly enables panzoom:
+You can explicitly enable panzoom even for small diagrams:
 
 ```mermaid
 ---
-title: Explicitly Enabled
 panzoom: { enabled: true }
 ---
-flowchart TB
-    H([Explicit Enable]) --> I([Panzoom Active])
-    style H fill:#f3e5f5,stroke:#7b1fa2,color:#111
-    style I fill:#e0f2f1,stroke:#00695c,color:#111
+flowchart LR
+    A --> B --> C
+```
+
+## Configuration Options
+
+You can customize the auto-detection thresholds in your `mkdocs.yml`:
+
+```yaml
+plugins:
+  - panzoom:
+      # Enable/disable smart auto-detection
+      auto_enable: true  # default: true
+
+      # Customize thresholds for auto-detection
+      auto_enable_threshold_lines: 8    # default: 8 lines
+      auto_enable_threshold_nodes: 6    # default: 6 nodes
+      auto_enable_threshold_edges: 5    # default: 5 connections
+      auto_enable_threshold_chars: 200  # default: 200 characters
+
+      # Other existing options...
+      show_zoom_buttons: true
+      full_screen: true
+```
+
+## How It Works
+
+The plugin analyzes each Mermaid diagram and counts:
+
+- **Lines**: Number of non-empty lines in the diagram code
+- **Nodes**: Number of elements (boxes, circles, decision points, etc.)
+- **Edges**: Number of connections/arrows between elements
+- **Characters**: Total character count of the diagram
+
+If any metric exceeds its threshold, panzoom is automatically enabled. You can always override this behavior using explicit YAML metadata.
+
+## Legacy Behavior
+
+To disable auto-detection and enable panzoom for all diagrams (old behavior):
+
+```yaml
+plugins:
+  - panzoom:
+      auto_enable: false  # Disables smart detection
 ```

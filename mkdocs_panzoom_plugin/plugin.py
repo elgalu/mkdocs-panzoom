@@ -38,6 +38,11 @@ class PanZoomPlugin(BasePlugin):
         ("initial_zoom_level", config_options.Type(float, default=1.0)),
         ("zoom_step", config_options.Type(float, default=0.2)),
         ("buttons_size", config_options.Type(str, default="1.25em")),
+        ("auto_enable", config_options.Type(bool, default=True)),
+        ("auto_enable_threshold_lines", config_options.Type(int, default=8)),
+        ("auto_enable_threshold_nodes", config_options.Type(int, default=6)),
+        ("auto_enable_threshold_edges", config_options.Type(int, default=5)),
+        ("auto_enable_threshold_chars", config_options.Type(int, default=200)),
     )
 
     def on_config(self, config: MkDocsConfig, **kwargs: Any) -> MkDocsConfig:

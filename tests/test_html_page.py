@@ -328,14 +328,10 @@ flowchart LR
             html_with_disabled_panzoom, basic_config, mock_page, mock_mkdocs_config
         )
 
-        # Should only find one mermaid diagram (the one without disabled panzoom)
-        assert len(html_page.containers) == 1
-
-        # The found container should be the one without YAML metadata
-        container = html_page.containers[0]
-        code_element = container.find("code")
-        assert code_element is not None
-        assert "panzoom: { enabled: false }" not in code_element.get_text()
+        # Should find no mermaid diagrams:
+        # - First one is explicitly disabled
+        # - Second one is auto-disabled (small diagram)
+        assert len(html_page.containers) == 0
 
     def test_mermaid_with_enabled_panzoom(self, basic_config, mock_page, mock_mkdocs_config):
         """Test that Mermaid diagrams with panzoom explicitly enabled are included."""
@@ -360,7 +356,7 @@ flowchart LR
         assert len(html_page.containers) == 1
 
     def test_mermaid_with_other_yaml_metadata(self, basic_config, mock_page, mock_mkdocs_config):
-        """Test that Mermaid diagrams with other YAML metadata are included by default."""
+        """Test that Mermaid diagrams with other YAML metadata use auto-detection."""
         html_with_other_metadata = """
         <html>
         <head><title>Test</title></head>
@@ -377,8 +373,8 @@ flowchart LR
 
         html_page = HTMLPage(html_with_other_metadata, basic_config, mock_page, mock_mkdocs_config)
 
-        # Should find the mermaid diagram (default is enabled)
-        assert len(html_page.containers) == 1
+        # Should not find the mermaid diagram (small diagram, auto-disabled)
+        assert len(html_page.containers) == 0
 
     def test_mixed_mermaid_diagrams(self, basic_config, mock_page, mock_mkdocs_config):
         """Test handling of mixed Mermaid diagrams with different panzoom settings."""
@@ -406,12 +402,12 @@ graph TB
 
         html_page = HTMLPage(mixed_html, basic_config, mock_page, mock_mkdocs_config)
 
-        # Should find 3 containers:
-        # - 1 mermaid without metadata (enabled by default)
+        # Should find 2 containers:
         # - 1 mermaid with explicit enabled
         # - 1 d2 diagram
         # The disabled mermaid should be excluded
-        assert len(html_page.containers) == 3
+        # The mermaid without metadata should be auto-disabled (small diagram)
+        assert len(html_page.containers) == 2
 
         # Verify the disabled one is not included
         for container in html_page.containers:
@@ -460,3 +456,156 @@ flowchart LR
 
         assert "img" in container_types
         assert "d2" in container_types
+
+
+class TestSizeBasedAutoDetection:
+    """Test size-based auto-detection in HTML processing."""
+
+    def test_small_diagram_auto_disabled(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that small Mermaid diagrams are automatically excluded from panzoom."""
+        html_with_small_diagram = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>flowchart LR
+    A --> B</code></pre>
+        </body>
+        </html>
+        """
+
+        html_page = HTMLPage(html_with_small_diagram, basic_config, mock_page, mock_mkdocs_config)
+
+        # Small diagram should be auto-excluded
+        assert len(html_page.containers) == 0
+
+    def test_large_diagram_auto_enabled(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that large Mermaid diagrams are automatically included in panzoom."""
+        html_with_large_diagram = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>flowchart TD
+    A[Start Process] --> B{Decision Point}
+    B -->|Yes| C[Process Option 1]
+    B -->|No| D[Process Option 2]
+    C --> E[Validation Step]
+    D --> F[Alternative Step]
+    E --> G[Final Processing]
+    F --> G
+    G --> H[End Process]</code></pre>
+        </body>
+        </html>
+        """
+
+        html_page = HTMLPage(html_with_large_diagram, basic_config, mock_page, mock_mkdocs_config)
+
+        # Large diagram should be auto-included
+        assert len(html_page.containers) == 1
+
+    def test_explicit_override_small_diagram(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that explicit YAML setting overrides auto-detection for small diagrams."""
+        html_with_explicit_enable = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>---
+panzoom: { enabled: true }
+---
+flowchart LR
+    A --> B</code></pre>
+        </body>
+        </html>
+        """
+
+        html_page = HTMLPage(
+            html_with_explicit_enable, basic_config, mock_page, mock_mkdocs_config
+        )
+
+        # Should respect explicit setting despite being small
+        assert len(html_page.containers) == 1
+
+    def test_explicit_override_large_diagram(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that explicit YAML setting overrides auto-detection for large diagrams."""
+        html_with_explicit_disable = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>---
+panzoom: { enabled: false }
+---
+flowchart TD
+    A[Start Process] --> B{Decision Point}
+    B -->|Yes| C[Process Option 1]
+    B -->|No| D[Process Option 2]
+    C --> E[Validation Step]
+    D --> F[Alternative Step]
+    E --> G[Final Processing]
+    F --> G
+    G --> H[End Process]</code></pre>
+        </body>
+        </html>
+        """
+
+        html_page = HTMLPage(
+            html_with_explicit_disable, basic_config, mock_page, mock_mkdocs_config
+        )
+
+        # Should respect explicit setting despite being large
+        assert len(html_page.containers) == 0
+
+    def test_custom_thresholds(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that custom thresholds are respected."""
+        html_with_small_diagram = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>flowchart LR
+    A --> B</code></pre>
+        </body>
+        </html>
+        """
+
+        # With default config, this should be excluded (small)
+        html_page_default = HTMLPage(
+            html_with_small_diagram, basic_config, mock_page, mock_mkdocs_config
+        )
+        assert len(html_page_default.containers) == 0
+
+        # With very low thresholds, this should be included
+        config_with_low_thresholds = basic_config.copy()
+        config_with_low_thresholds.update(
+            {
+                "auto_enable_threshold_lines": 1,
+                "auto_enable_threshold_nodes": 1,
+                "auto_enable_threshold_edges": 1,
+                "auto_enable_threshold_chars": 10,
+            }
+        )
+
+        html_page_low_threshold = HTMLPage(
+            html_with_small_diagram, config_with_low_thresholds, mock_page, mock_mkdocs_config
+        )
+        assert len(html_page_low_threshold.containers) == 1
+
+    def test_auto_enable_disabled(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that when auto_enable is disabled, all diagrams get panzoom (legacy behavior)."""
+        html_with_small_diagram = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>flowchart LR
+    A --> B</code></pre>
+        </body>
+        </html>
+        """
+
+        # Disable auto_enable feature
+        config_no_auto = basic_config.copy()
+        config_no_auto["auto_enable"] = False
+
+        html_page = HTMLPage(
+            html_with_small_diagram, config_no_auto, mock_page, mock_mkdocs_config
+        )
+
+        # Should include even small diagrams when auto_enable is disabled
+        assert len(html_page.containers) == 1
