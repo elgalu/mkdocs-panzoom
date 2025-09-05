@@ -39,12 +39,21 @@ markdown_extensions:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
-  - pymdownx.details
-  - pymdownx.keys
-  - pymdownx.magiclink
-  - pymdownx.tasklist
-  - admonition
-  - toc:
+  # https://facelessuser.github.io/pymdown-extensions/extensions/blocks/plugins/details/#usage
+  - pymdownx.blocks.details:
+  # https://facelessuser.github.io/pymdown-extensions/extensions/keys/
+  - pymdownx.keys:
+      separator: '+'
+  # https://facelessuser.github.io/pymdown-extensions/extensions/magiclink/
+  - pymdownx.magiclink:
+      repo_url_shortener: true
+      repo_url_shorthand: true
+  # https://squidfunk.github.io/mkdocs-material/reference/lists/#using-task-lists
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - markdown.extensions.admonition:
+  - markdown.extensions.toc:
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
       permalink: true
   # https://facelessuser.github.io/pymdown-extensions/extensions/superfences/
   # pymdownx.superfences can break panzoom functionality when `format: !!python/name:mermaid2.fence_mermaid`
