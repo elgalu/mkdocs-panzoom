@@ -46,6 +46,7 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
 
 plugins:
+  - section-index
   - glightbox
   # https://berkkaraal.com/mkdocs-material-mark-as-read/quickstart/
   - mark-as-read:
