@@ -12,6 +12,7 @@ from mkdocs_panzoom_plugin.panzoom_box import (
     create_js_script_plugin,
     create_panzoom_box,
 )
+from mkdocs_panzoom_plugin.yaml_parser import should_enable_panzoom
 
 
 logger = logging.getLogger(__name__)
@@ -151,19 +152,30 @@ class HTMLPage:
 
             for selector in self.config.get("selectors", []):
                 try:
+                    found_elements = []
                     if selector.startswith("."):
                         # Find by class
                         elements = self.soup.find_all(class_=selector.lstrip("."))
-                        output.extend([elem for elem in elements if isinstance(elem, Tag)])
+                        found_elements = [elem for elem in elements if isinstance(elem, Tag)]
                     elif selector.startswith("#"):
                         # Find by ID
                         id_element = self.soup.find(id=selector.lstrip("#"))
                         if id_element is not None and isinstance(id_element, Tag):
-                            output.append(id_element)
+                            found_elements = [id_element]
                     else:
                         # Find by tag name
                         elements = self.soup.find_all(selector)
-                        output.extend([elem for elem in elements if isinstance(elem, Tag)])
+                        found_elements = [elem for elem in elements if isinstance(elem, Tag)]
+
+                    # Filter elements based on per-diagram panzoom settings
+                    for elem in found_elements:
+                        if self._should_apply_panzoom(elem):
+                            output.append(elem)
+                        else:
+                            logger.debug(
+                                "Skipping element due to panzoom.enabled=false in YAML metadata"
+                            )
+
                 except Exception as e:
                     logger.warning(f"Error processing selector '{selector}': {e}")
                     continue
@@ -174,3 +186,37 @@ class HTMLPage:
         except Exception as e:
             logger.error(f"Failed to find elements: {e}")
             return []
+
+    def _should_apply_panzoom(self, element: Tag) -> bool:
+        """Check if panzoom should be applied to an element based on its content.
+
+        Args:
+        ----
+        element : Tag
+            BeautifulSoup Tag element to check
+
+        Returns
+        -------
+        bool
+            True if panzoom should be applied, False if disabled via YAML metadata
+
+        """
+        try:
+            # Check if this is a Mermaid diagram with potential YAML metadata
+            if element.name == "pre" and "mermaid" in element.get("class", []):
+                # Look for the code content within the pre element
+                code_element = element.find("code")
+                if code_element:
+                    # Use get_text() to extract all text content, including nested elements
+                    content = code_element.get_text()
+                    if content:
+                        return should_enable_panzoom(content)
+
+            # For other elements (like D2, images), default to enabled
+            # Could be extended in the future for other diagram types
+            return True
+
+        except Exception as e:
+            logger.warning(f"Error checking panzoom settings for element: {e}")
+            # Default to enabled on error
+            return True

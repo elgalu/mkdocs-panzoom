@@ -302,3 +302,161 @@ class TestErrorHandling:
         html_page.add_panzoom()
 
         assert html_page.soup is not None
+
+
+class TestYamlMetadataParsing:
+    """Test YAML metadata parsing for per-diagram panzoom control."""
+
+    def test_mermaid_with_disabled_panzoom(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that Mermaid diagrams with panzoom disabled are excluded."""
+        html_with_disabled_panzoom = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>---
+panzoom: { enabled: false }
+---
+flowchart LR
+    A --> B</code></pre>
+            <pre class="mermaid"><code>flowchart TD
+    C --> D</code></pre>
+        </body>
+        </html>
+        """
+
+        html_page = HTMLPage(
+            html_with_disabled_panzoom, basic_config, mock_page, mock_mkdocs_config
+        )
+
+        # Should only find one mermaid diagram (the one without disabled panzoom)
+        assert len(html_page.containers) == 1
+
+        # The found container should be the one without YAML metadata
+        container = html_page.containers[0]
+        code_element = container.find("code")
+        assert code_element is not None
+        assert "panzoom: { enabled: false }" not in code_element.get_text()
+
+    def test_mermaid_with_enabled_panzoom(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that Mermaid diagrams with panzoom explicitly enabled are included."""
+        html_with_enabled_panzoom = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>---
+panzoom: { enabled: true }
+---
+flowchart LR
+    A --> B</code></pre>
+        </body>
+        </html>
+        """
+
+        html_page = HTMLPage(
+            html_with_enabled_panzoom, basic_config, mock_page, mock_mkdocs_config
+        )
+
+        # Should find the mermaid diagram
+        assert len(html_page.containers) == 1
+
+    def test_mermaid_with_other_yaml_metadata(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that Mermaid diagrams with other YAML metadata are included by default."""
+        html_with_other_metadata = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>---
+title: My Diagram
+theme: dark
+---
+flowchart LR
+    A --> B</code></pre>
+        </body>
+        </html>
+        """
+
+        html_page = HTMLPage(html_with_other_metadata, basic_config, mock_page, mock_mkdocs_config)
+
+        # Should find the mermaid diagram (default is enabled)
+        assert len(html_page.containers) == 1
+
+    def test_mixed_mermaid_diagrams(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test handling of mixed Mermaid diagrams with different panzoom settings."""
+        mixed_html = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <pre class="mermaid"><code>---
+panzoom: { enabled: false }
+---
+flowchart LR
+    A --> B</code></pre>
+            <pre class="mermaid"><code>flowchart TD
+    C --> D</code></pre>
+            <pre class="mermaid"><code>---
+title: Enabled Diagram
+panzoom: { enabled: true }
+---
+graph TB
+    E --> F</code></pre>
+            <div class="d2">D2 diagram content</div>
+        </body>
+        </html>
+        """
+
+        html_page = HTMLPage(mixed_html, basic_config, mock_page, mock_mkdocs_config)
+
+        # Should find 3 containers:
+        # - 1 mermaid without metadata (enabled by default)
+        # - 1 mermaid with explicit enabled
+        # - 1 d2 diagram
+        # The disabled mermaid should be excluded
+        assert len(html_page.containers) == 3
+
+        # Verify the disabled one is not included
+        for container in html_page.containers:
+            if container.name == "pre" and "mermaid" in container.get("class", []):
+                code_element = container.find("code")
+                if code_element:
+                    content = code_element.get_text()
+                    # Should not contain the disabled diagram
+                    assert "panzoom: { enabled: false }" not in content
+
+    def test_non_mermaid_elements_unaffected(self, basic_config, mock_page, mock_mkdocs_config):
+        """Test that non-Mermaid elements are not affected by YAML parsing."""
+        html_with_mixed_content = """
+        <html>
+        <head><title>Test</title></head>
+        <body>
+            <img src="test.jpg" alt="test">
+            <div class="d2">D2 content</div>
+            <pre class="mermaid"><code>---
+panzoom: { enabled: false }
+---
+flowchart LR
+    A --> B</code></pre>
+        </body>
+        </html>
+        """
+
+        # Add images support to config for this test
+        config_with_images = basic_config.copy()
+        config_with_images["images"] = True
+
+        html_page = HTMLPage(
+            html_with_mixed_content, config_with_images, mock_page, mock_mkdocs_config
+        )
+
+        # Should find 2 containers: img and d2 (mermaid should be excluded)
+        assert len(html_page.containers) == 2
+
+        # Verify we have the img and d2 elements
+        container_types = []
+        for container in html_page.containers:
+            if container.name == "img":
+                container_types.append("img")
+            elif container.name == "div" and "d2" in container.get("class", []):
+                container_types.append("d2")
+
+        assert "img" in container_types
+        assert "d2" in container_types
