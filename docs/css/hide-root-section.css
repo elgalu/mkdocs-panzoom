@@ -1,0 +1,4 @@
+/* Hide the grey “root section” label that shows the site name (which we already have at the header) */
+.md-nav__title {
+    display: none;
+}

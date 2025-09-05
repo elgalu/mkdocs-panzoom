@@ -25,18 +25,36 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 requires-python = ">=3.10"
-dependencies = ["mkdocs>=1.0.4", "beautifulsoup4>=4.9.0"]
+dependencies = [
+  "mkdocs>=1.0.4",
+  "beautifulsoup4>=4.9.0",
+  "mkdocs-literate-nav>=0.6.2",
+]
 
 [dependency-groups]
 dev = [
-  "mkdocs-material>=9.6.7",
-  "mkdocs-d2-plugin",
-  "pre-commit",
-  "ruff>=0.12.0",
+  "awslambdaric>=3.1.0",
+  "boto3>=1.35.0",
+  "botocore>=1.35.0",
+  "cfnresponse>=1.1.5",
+  "mkdocs>=1.6.1",
+  "mkdocs-git-authors-plugin>=0.10.0",
+  "mkdocs-git-revision-date-localized-plugin>=1.4.7",
+  "mkdocs-literate-nav>=0.6.2",
+  "mkdocs-material>=9.6.14",
+  "mkdocs-mermaid2-plugin>=1.2.1",
+  "mkdocs-panzoom-plugin",
+  "mkdocs-d2-plugin>=1.6.0",
+  "mkdocs-redirects>=1.2.2",
+  "mkdocs-section-index>=0.3.10",
+  "mkdocs-glightbox>=0.5.1",
   "mypy>=1.16.1",
-  "pytest>=8.4.1",
-  "pytest-cov>=6.2.1",
-  "pytest-html>=4.1.1",
+  "pylint>=3.3.7",
+  "pymdown-extensions>=10.16",
+  "pyyaml>=6.0.1",
+  "types-pyyaml>=6.0.12.20250516",
+  "mkdocs-toggle-sidebar-plugin>=0.0.6",
+  "mkdocs-material-mark-as-read>=0.0.1",
 ]
 docs = ["mkdocs>=1.1.2", "mkdocs-material>=9.6.7", "mkdocs-d2-plugin"]
 

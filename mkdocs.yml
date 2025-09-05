@@ -26,27 +26,165 @@ theme:
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.top
-# Extensions
+
+# Possible extensions: https://python-markdown.github.io/sitemap.html
+# More extensions: https://facelessuser.github.io/pymdown-extensions/
 markdown_extensions:
-  - footnotes
-  - attr_list
-  - pymdownx.highlight
-  - pymdownx.superfences
-  - pymdownx.details
-  - pymdownx.keys
-  - pymdownx.magiclink
-  - pymdownx.tasklist
-  - admonition
-  - toc:
+  # attr_list and md_in_html allows to add annotations (tooltips)
+  # https://squidfunk.github.io/mkdocs-material/reference/annotations/#configuration
+  - markdown.extensions.attr_list:
+  - markdown.extensions.md_in_html:
+  - markdown.extensions.def_list:
+  - markdown.extensions.toc:
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
       permalink: true
+  - markdown.extensions.admonition:
+  - markdown.extensions.smarty:
+      smart_quotes: false
+  - markdown.extensions.extra:
+  # markdown.extensions.meta allows to add a meta description to the page with no rendering
+  # markdown.extensions.meta:
+  # abbr enables abbreviations from a includes/abbreviations.md project-wide glossary
+  # - markdown.extensions.abbr:
+  # https://squidfunk.github.io/mkdocs-material/reference/footnotes/#adding-footnote-references
+  - markdown.extensions.footnotes:
+  # tables: https://squidfunk.github.io/mkdocs-material/reference/data-tables/#usage
+  - markdown.extensions.tables:
+  # https://facelessuser.github.io/pymdown-extensions/extensions/blocks/plugins/details/#usage
+  - pymdownx.blocks.details:
+  # https://facelessuser.github.io/pymdown-extensions/extensions/details/
+  - pymdownx.details:
+  # https://facelessuser.github.io/pymdown-extensions/extensions/keys/
+  - pymdownx.keys:
+      separator: '+'
+  # emoji: https://squidfunk.github.io/mkdocs-material/reference/icons-emojis/#using-emojis
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  # https://squidfunk.github.io/mkdocs-material/reference/lists/#using-task-lists
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  # https://facelessuser.github.io/pymdown-extensions/extensions/magiclink/
+  - pymdownx.magiclink:
+      repo_url_shortener: true
+      repo_url_shorthand: true
+  # Use classic tabbed extension (blocks.tab can conflict with Material & fenced code inside)
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      # Make the build fail if a snippet can't be found
+      check_paths: true
+      # auto_append: a way to append a given file to every Markdown document
+      # https://facelessuser.github.io/pymdown-extensions/extensions/snippets/#auto-append-snippets
+      # auto_append:
+      #   # https://squidfunk.github.io/mkdocs-material/reference/tooltips/#adding-a-glossary
+      #   - includes/abbreviations.md
+  # `pymdownx.highlight` syntax highlighting on code blocks and inline code blocks
+  # https://squidfunk.github.io/mkdocs-material/reference/code-blocks/#code-blocks
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  # inlinehilite colored code line, e.g.`#!py3 import pymdownx`
+  - pymdownx.inlinehilite:
+  # https://facelessuser.github.io/pymdown-extensions/extensions/mark/
+  - pymdownx.mark:
+  # `pymdownx.extra` breaks Mermaid diagrams
+  # - pymdownx.extra:
+  - pymdownx.arithmatex:
+      generic: true
+  # `pymdownx.betterem` can be used to override all the current bold and italic rules in Python Markdown
+  # - pymdownx.betterem:
+  # colored progress bars e.g. `[=25% "25%"]` https://facelessuser.github.io/pymdown-extensions/extensions/progressbar/
+  - pymdownx.progressbar:
+  # https://facelessuser.github.io/pymdown-extensions/extensions/superfences/
+  # pymdownx.superfences can break panzoom functionality when `format: !!python/name:mermaid2.fence_mermaid`
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+          # format: !!python/name:mermaid2.fence_mermaid
+        - name: math
+          class: arithmatex
+          format: !!python/name:pymdownx.arithmatex.fence_generic_format
+
+extra_css:
+  # https://cdnjs.com/libraries/MaterialDesign-Webfont
+  - https://cdn.materialdesignicons.com/7.4.47/css/materialdesignicons.css
+  - css/mermaid.css
+  # Global dark/light aware diagram color tokens & styling
+  - css/hide-root-section.css
+
+extra_javascript:
+  # When needed offline access: download newer versions at https://unpkg.com/browse/mermaid@11.11.0/dist/
+  - extra/js/refresh-on-toggle-dark-light.js
+
+extra:
+  generator: false
 
 plugins:
-  - search
+  - section-index
+  - glightbox
+  # https://berkkaraal.com/mkdocs-material-mark-as-read/quickstart/
+  - mark-as-read:
+      texts:
+        mark_as_read: "Mark as completed / read"
+        read_tooltip: "Red/Completed"
+        mark_as_unread: "Mark as incomplete / read again"
+        updated_tooltip: "Updated"
+  #-
+  # mkdocs-exclude usage:
+  # - exclude:
+  #     glob:
+  #       - includes/*
+  - literate-nav:
+      nav_file: SUMMARY.md
+      # implicit_index: false
+  #-
+  # mkdocs-exclude usage:
+  # - exclude:
+  #     glob:
+  #       - includes/*
+  - search:
+      lang: en
+  - git-revision-date-localized:
+      type: timeago
+      enable_creation_date: true
+  - git-authors:
+      add_co_authors: true
+      show_contribution: true
+      show_line_count: true
+      count_empty_lines: true
+  # Toggle sidebar plugin - allows users to hide/show left and right sidebars
+  - toggle-sidebar:
+      toggle_button: all
+      inline: true
+      show_navigation_by_default: true
+      show_toc_by_default: true
+  - mermaid2:
+      # By default, the plugin selects a version of the Mermaid javascript library that is known to work
+      # (some versions work better than others). If you want to use a specific version, you can specify it here:
+      version: 11.11.0
+      # Find latest MermaID version at https://unpkg.com/browse/mermaid@11.11.0/dist/
+      # http://127.0.0.1:8000/extra/js/improve-mermaid-c4-model-visuals.js
+      # http://127.0.0.1:8000/extra/js/mermaid-11.11.0.min.js
+      # When needed offline access: download newer versions at https://unpkg.com/browse/mermaid@11.11.0/dist/
+      # javascript: extra/js/mermaid-11.11.0.min.js
+      # When using the CDN version (instead of local files) Mermaid2 was not rendering the diagrams
+      # javascript: "https://unpkg.com/mermaid@11.11.0/dist/mermaid.min.js"
+      arguments:
+        # theme: 'dark'
+        # Fix overflown boxes via `wrap: true`
+        wrap: true
+        # Use loose to allow clicking the diagram, tooltips, etc.
+        securityLevel: "loose"
+        # themeVariables:
+        #   fontSize: "2em"
+        # Theme auto switch (depending on toggle) doesn't work out of the box
+        # The user (or a script) will need to refresh the page when switching between dark/light modes
+        theme: |
+          ^(JSON.parse(__md_get("__palette").index == 1)) ? 'dark' : 'light'
   - panzoom:
       auto_enable: true                 # Enable smart auto-detection (default: true)
       auto_enable_threshold_lines: 8    # Lines threshold (default: 8)
@@ -64,3 +202,4 @@ plugins:
       full_screen: true
       initial_zoom_level: 1.0
   - d2
+  - tags
