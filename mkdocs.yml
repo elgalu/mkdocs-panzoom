@@ -28,10 +28,17 @@ theme:
     - navigation.top
 # Extensions
 markdown_extensions:
-  - footnotes
-  - attr_list
-  - pymdownx.highlight
-  - pymdownx.superfences
+  # attr_list and md_in_html allows to add annotations (tooltips)
+  # https://squidfunk.github.io/mkdocs-material/reference/annotations/#configuration
+  - markdown.extensions.attr_list:
+  # https://squidfunk.github.io/mkdocs-material/reference/footnotes/#adding-footnote-references
+  - markdown.extensions.footnotes:
+  # `pymdownx.highlight` syntax highlighting on code blocks and inline code blocks
+  # https://squidfunk.github.io/mkdocs-material/reference/code-blocks/#code-blocks
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.details
   - pymdownx.keys
   - pymdownx.magiclink
@@ -39,11 +46,17 @@ markdown_extensions:
   - admonition
   - toc:
       permalink: true
+  # https://facelessuser.github.io/pymdown-extensions/extensions/superfences/
+  # pymdownx.superfences can break panzoom functionality when `format: !!python/name:mermaid2.fence_mermaid`
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+          # format: !!python/name:mermaid2.fence_mermaid
+        - name: math
+          class: arithmatex
+          format: !!python/name:pymdownx.arithmatex.fence_generic_format
 
 extra_css:
   # https://cdnjs.com/libraries/MaterialDesign-Webfont
