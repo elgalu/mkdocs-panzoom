@@ -1,3 +1,7 @@
+---
+mark_as_read: { updated_at: 2025-09-05 12:35:05+02:00 }
+---
+
 # Smart Panzoom Auto-Detection
 
 The plugin now automatically detects diagram size/complexity and only enables panzoom for larger diagrams that would benefit from zoom functionality.

@@ -46,7 +46,66 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
 
 plugins:
-  - search
+  - glightbox
+  # https://berkkaraal.com/mkdocs-material-mark-as-read/quickstart/
+  - mark-as-read:
+      texts:
+        mark_as_read: "Mark as completed / read"
+        read_tooltip: "Red/Completed"
+        mark_as_unread: "Mark as incomplete / read again"
+        updated_tooltip: "Updated"
+  #-
+  # mkdocs-exclude usage:
+  # - exclude:
+  #     glob:
+  #       - includes/*
+  - literate-nav:
+      nav_file: SUMMARY.md
+      # implicit_index: false
+  #-
+  # mkdocs-exclude usage:
+  # - exclude:
+  #     glob:
+  #       - includes/*
+  - search:
+      lang: en
+  - git-revision-date-localized:
+      type: timeago
+      enable_creation_date: true
+  - git-authors:
+      add_co_authors: true
+      show_contribution: true
+      show_line_count: true
+      count_empty_lines: true
+  # Toggle sidebar plugin - allows users to hide/show left and right sidebars
+  - toggle-sidebar:
+      toggle_button: all
+      inline: true
+      show_navigation_by_default: true
+      show_toc_by_default: true
+  - mermaid2:
+      # By default, the plugin selects a version of the Mermaid javascript library that is known to work
+      # (some versions work better than others). If you want to use a specific version, you can specify it here:
+      version: 11.11.0
+      # Find latest MermaID version at https://unpkg.com/browse/mermaid@11.11.0/dist/
+      # http://127.0.0.1:8000/extra/js/improve-mermaid-c4-model-visuals.js
+      # http://127.0.0.1:8000/extra/js/mermaid-11.11.0.min.js
+      # When needed offline access: download newer versions at https://unpkg.com/browse/mermaid@11.11.0/dist/
+      javascript: extra/js/mermaid-11.11.0.min.js
+      # When using the CDN version (instead of local files) Mermaid2 was not rendering the diagrams
+      # javascript: "https://unpkg.com/mermaid@11.11.0/dist/mermaid.min.js"
+      arguments:
+        # theme: 'dark'
+        # Fix overflown boxes via `wrap: true`
+        wrap: true
+        # Use loose to allow clicking the diagram, tooltips, etc.
+        securityLevel: "loose"
+        # themeVariables:
+        #   fontSize: "2em"
+        # Theme auto switch (depending on toggle) doesn't work out of the box
+        # The user (or a script) will need to refresh the page when switching between dark/light modes
+        theme: |
+          ^(JSON.parse(__md_get("__palette").index == 1)) ? 'dark' : 'light'
   - panzoom:
       auto_enable: true                 # Enable smart auto-detection (default: true)
       auto_enable_threshold_lines: 8    # Lines threshold (default: 8)
@@ -64,3 +123,4 @@ plugins:
       full_screen: true
       initial_zoom_level: 1.0
   - d2
+  - tags
