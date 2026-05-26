@@ -6,6 +6,13 @@ mark_as_read: { updated_at: 2025-09-05 12:35:05+02:00 }
 
 The plugin now automatically detects diagram size/complexity and only enables panzoom for larger diagrams that would benefit from zoom functionality.
 
+## Small Diagrams with 5 nodes
+
+```mermaid
+flowchart LR
+    A([Start]) --> B([aws-cli]) --> C([GitHub SSH]) --> D([SSH Keys Added]) --> E([Ready to Connect])
+```
+
 ## Small Diagrams (Auto-Disabled)
 
 Small/simple diagrams automatically have panzoom disabled since they don't need zoom functionality:
