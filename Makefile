@@ -1,67 +1,44 @@
 SHELL := /bin/bash
-.PHONY: setup all hooks check clean env build serve jupyter test
+.DEFAULT_GOAL := help
+.PHONY: help setup all hooks check prek clean env build serve test tests docs
 
-setup:
-	./scripts/contributor_setup.sh
+help: ## Show this help message
+	@echo "mkdocs-panzoom-plugin Makefile"
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ""
+	@echo "Note: 'make' alone prints this help. Run 'make setup' the first time you clone."
 
-test:
-	@source .venv/bin/activate; \
-	echo "Running tests..."; \
-	uv run pytest tests/ -v --cov=mkdocs_panzoom_plugin --cov-report=term-missing --cov-report=html --cov-report=xml
+setup: ## First-time contributor setup (.venv, deps, prek hooks, d2 if needed)
+	@./scripts/contributor-setup.sh
 
-check: test
-	@source .venv/bin/activate; \
-	if [ -n "$$CI" ]; then \
-		uvx --from 'pre-commit' pre-commit run --all-files --origin HEAD --source origin/HEAD; \
-	else \
-		uvx --from 'pre-commit' pre-commit run --all-files; \
-	fi
+check: ## Run prek hooks (CI: changed files only; local: --all-files)
+	@./scripts/check.sh
 
-clean:
-	@echo "Cleaning up..."
-	@find . -name '.venv' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name 'build' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name 'dist' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name '*.egg-info' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name '.pytest_cache' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name '.mypy_cache' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name '.ruff_cache' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name 'site' -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name '*.pyc' -delete 2>/dev/null || true
-	@echo "✓ Cleanup complete!"
+prek: ## Run prek on all files unconditionally
+	@./scripts/prek.sh
 
-env:
-	@source .venv/bin/activate; \
-	echo "Environment information:"
-	@echo "Project root: $(shell pwd)"
-	@echo -n "Python version: " && python --version 2>/dev/null || echo "Python not found"
-	@echo -n "UV version: " && uv --version 2>/dev/null || echo "UV not found"
-	@echo "Virtual environment: $${VIRTUAL_ENV:-Not activated}"
-	@echo "UV project info:"
-	@uv info 2>/dev/null || echo "No UV project found"
-	@echo "UV lock status:"
-	@test -f uv.lock && echo "✓ uv.lock exists" || echo "✗ uv.lock missing"
-	@echo "UV cache info:"
-	@uv cache dir 2>/dev/null || echo "UV cache directory not available"
+test: ## Run pytest with coverage (extra args via ARGS=...)
+	@./scripts/test.sh $(ARGS)
 
-build:
-	@source .venv/bin/activate; \
-	if [ -f "mkdocs.yml" ]; then \
-		echo "Building documentation..."; \
-		echo "Will generate static HTML in 'site' folder"; \
-		uv run mkdocs build; \
-		echo "✓ Documentation built!"; \
-	else \
-		echo "No mkdocs.yml found, skipping docs build."; \
-	fi
+tests: test ## Alias for 'test'
 
-serve:
-	@source .venv/bin/activate; \
-	echo "Starting documentation server..."; \
-	uv run mkdocs serve
+build: ## Build demo docs (mkdocs build --strict, output: site/)
+	@./scripts/build.sh
 
-docs: build
+serve: ## Live-preview docs at http://127.0.0.1:8000
+	@./scripts/serve.sh
 
-all: check
-hooks: check
+docs: build ## Alias for 'build'
+
+env: ## Print Python / uv / venv diagnostic info
+	@./scripts/env.sh
+
+clean: ## Remove .venv, build artifacts, caches, rendered site/
+	@./scripts/clean.sh
+
+all: check ## Alias for 'check'
+hooks: check ## Alias for 'check'

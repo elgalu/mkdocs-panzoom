@@ -22,5 +22,6 @@ MD030: false
 # Allow Inline HTML like <div class="annotate" markdown>
 MD033: false
 
-# Disable first-line-heading due to abbreviations.md
-# MD041: false
+# Disable first-line-heading: docs/extra/abbreviations.md and CLAUDE.md (one-line
+# pointer to AGENTS.md) intentionally don't start with a heading.
+MD041: false

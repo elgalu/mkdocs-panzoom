@@ -55,6 +55,8 @@ dev = [
   "types-pyyaml>=6.0.12.20250516",
   "mkdocs-toggle-sidebar-plugin>=0.0.6",
   "mkdocs-material-mark-as-read>=0.0.1",
+  "pytest>=9.0.3",
+  "pytest-cov>=7.1.0",
 ]
 docs = ["mkdocs>=1.1.2", "mkdocs-material>=9.6.7", "mkdocs-d2-plugin"]
 
@@ -71,7 +73,7 @@ panzoom = "mkdocs_panzoom_plugin.plugin:PanZoomPlugin"
 packages = ["mkdocs_panzoom_plugin"]
 
 [tool.uv]
-native-tls = true
+system-certs = true
 
 [tool.codespell]
 skip = 'uv.lock'
