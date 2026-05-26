@@ -156,15 +156,15 @@ cause it to find no elements (or, for `mermaid2`, raise `ConfigurationError` in 
 
 ## Repository Layout
 
-| Path                                        | Purpose                                               |
-| ------------------------------------------- | ----------------------------------------------------- |
-| `mkdocs_panzoom_plugin/`                    | Plugin source                                         |
-| `mkdocs_panzoom_plugin/custom/`             | Bundled CSS + project JS (`zoompan.js`)               |
-| `mkdocs_panzoom_plugin/panzoom/`            | Third-party `panzoom.min.js` (do not edit)            |
-| `tests/`                                    | Pytest tests, one file per source module              |
-| `docs/`                                     | MkDocs documentation source (Mermaid/, D2/, etc.)     |
-| `scripts/`                                  | Per-target shell scripts (setup, check, prek, test, build, serve, env, clean) |
-| `mkdocs.yml`                                | Demo site config used by `make serve` / `make build`  |
+| Path                             | Purpose                                                                       |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| `mkdocs_panzoom_plugin/`         | Plugin source                                                                 |
+| `mkdocs_panzoom_plugin/custom/`  | Bundled CSS + project JS (`zoompan.js`)                                       |
+| `mkdocs_panzoom_plugin/panzoom/` | Third-party `panzoom.min.js` (do not edit)                                    |
+| `tests/`                         | Pytest tests, one file per source module                                      |
+| `docs/`                          | MkDocs documentation source (Mermaid/, D2/, etc.)                             |
+| `scripts/`                       | Per-target shell scripts (setup, check, prek, test, build, serve, env, clean) |
+| `mkdocs.yml`                     | Demo site config used by `make serve` / `make build`                          |
 
 The top-level `debug_*.py` and `test_*.py` files are ad-hoc scratch scripts, not part of the
 test suite (pytest only collects from `tests/`).
