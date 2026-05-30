@@ -149,6 +149,28 @@ class TestElementFinding:
 
         assert len(html_page.containers) == 0
 
+    def test_element_matching_multiple_selectors_collected_once(
+        self, mock_page, mock_mkdocs_config
+    ):
+        """An element matching two selectors is collected once, not duplicated.
+
+        Regression: _find_elements accumulated across selectors without dedup, so a
+        div matching both ".d2" and a custom include class got wrapped in two nested
+        panzoom-boxes.
+        """
+        html = '<html><body><div class="d2 chart"><svg></svg></div></body></html>'
+        config = {
+            "selectors": [],
+            "include_selectors": [".chart"],
+            "exclude_selectors": [],
+        }
+
+        html_page = HTMLPage(html, config, mock_page, mock_mkdocs_config)
+
+        assert len(html_page.containers) == 1
+        html_page.add_panzoom()
+        assert str(html_page).count('class="panzoom-box"') == 1
+
 
 class TestPanzoomAddition:
     """Test panzoom functionality addition."""
@@ -210,6 +232,26 @@ class TestPanzoomAddition:
         content = meta_tag.get("content", "")
         assert "selectors" in content
         assert "initial_zoom_level" in content
+
+    def test_no_assets_injected_without_diagrams(
+        self, basic_config, mock_page, mock_mkdocs_config
+    ):
+        """A page with no matched diagrams must not load the panzoom CSS/JS/meta.
+
+        Otherwise every text-only page would download panzoom.min.js + zoompan.js +
+        panzoom.css for no reason.
+        """
+        html = "<html><head></head><body><p>no diagrams here</p></body></html>"
+        html_page = HTMLPage(html, basic_config, mock_page, mock_mkdocs_config)
+        assert html_page.containers == []
+
+        html_page.add_panzoom()
+        soup = html_page.soup
+
+        assert soup.find("link", {"rel": "stylesheet"}) is None
+        assert soup.find_all("script", {"src": True}) == []
+        assert soup.find("meta", {"name": "panzoom-data"}) is None
+        assert soup.find_all("div", class_="panzoom-box") == []
 
     def test_add_panzoom_missing_head(self, basic_config, mock_page, mock_mkdocs_config):
         """Test handling of missing head tag."""
@@ -302,6 +344,148 @@ class TestErrorHandling:
         html_page.add_panzoom()
 
         assert html_page.soup is not None
+
+    def test_non_list_selectors_are_coerced(self, basic_html, mock_page, mock_mkdocs_config):
+        """include_selectors / exclude_selectors that aren't lists are treated as empty."""
+        config = {
+            "include_selectors": "not-a-list",
+            "exclude_selectors": None,
+        }
+        html_page = HTMLPage(basic_html, config, mock_page, mock_mkdocs_config)
+        # Falls back to the default selector set.
+        selectors = html_page.config["selectors"]
+        assert ".mermaid" in selectors
+        assert ".d2" in selectors
+
+    def test_mermaid_false_removes_mermaid_selector(
+        self, basic_html, mock_page, mock_mkdocs_config
+    ):
+        """The legacy mermaid: false flag drops .mermaid from the selector set."""
+        config = {
+            "include_selectors": [],
+            "exclude_selectors": [],
+            "mermaid": False,
+        }
+        html_page = HTMLPage(basic_html, config, mock_page, mock_mkdocs_config)
+        assert ".mermaid" not in html_page.config["selectors"]
+
+    def test_find_elements_per_selector_error_is_skipped(
+        self, basic_html, basic_config, mock_page, mock_mkdocs_config
+    ):
+        """If matching one selector raises, that selector is skipped, not fatal."""
+        html_page = HTMLPage(basic_html, basic_config, mock_page, mock_mkdocs_config)
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        # Make every find_all raise; _find_elements should swallow per selector
+        # and return an empty list rather than propagating.
+        html_page.soup.find_all = boom
+        html_page.soup.find = boom
+        assert html_page._find_elements() == []
+
+    def test_find_elements_outer_error_returns_empty(
+        self, basic_html, basic_config, mock_page, mock_mkdocs_config
+    ):
+        """A failure before the selector loop yields an empty list (safe fallback)."""
+        html_page = HTMLPage(basic_html, basic_config, mock_page, mock_mkdocs_config)
+
+        # config.get is used early in _find_elements; make it explode.
+        class _BoomConfig(dict):
+            def get(self, *args, **kwargs):
+                raise RuntimeError("boom")
+
+        html_page.config = _BoomConfig()
+        assert html_page._find_elements() == []
+
+    def test_should_apply_panzoom_swallows_errors(
+        self, basic_config, mock_page, mock_mkdocs_config
+    ):
+        """_should_apply_panzoom defaults to True if inspecting an element raises."""
+        html_page = HTMLPage(
+            "<html><body></body></html>", basic_config, mock_page, mock_mkdocs_config
+        )
+
+        class _BoomTag:
+            name = "pre"
+
+            def get(self, *args, **kwargs):
+                raise RuntimeError("boom")
+
+        assert html_page._should_apply_panzoom(_BoomTag()) is True
+
+    def test_init_reraises_on_parse_failure(
+        self, basic_config, mock_page, mock_mkdocs_config, monkeypatch
+    ):
+        """HTMLPage.__init__ logs and re-raises if HTML parsing fails."""
+        import mkdocs_panzoom_plugin.html_page as hp_mod
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(hp_mod, "BeautifulSoup", boom)
+        with pytest.raises(RuntimeError):
+            HTMLPage("<html></html>", basic_config, mock_page, mock_mkdocs_config)
+
+    def test_add_panzoom_reraises_on_wrap_failure(
+        self, basic_html, basic_config, mock_page, mock_mkdocs_config
+    ):
+        """add_panzoom logs and re-raises if wrapping an element fails."""
+        html_page = HTMLPage(basic_html, basic_config, mock_page, mock_mkdocs_config)
+
+        # Force an error during the wrap loop; add_panzoom catches, logs, re-raises.
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        for elem in html_page.containers:
+            elem.wrap = boom
+        with pytest.raises(RuntimeError):
+            html_page.add_panzoom()
+
+    def test_add_data_for_js_swallows_serialization_error(
+        self, basic_html, basic_config, mock_page, mock_mkdocs_config, monkeypatch
+    ):
+        """_add_data_for_js logs (not raises) if building the metadata fails."""
+        html_page = HTMLPage(basic_html, basic_config, mock_page, mock_mkdocs_config)
+
+        import mkdocs_panzoom_plugin.html_page as hp_mod
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        # json.dumps is the first thing inside the try; make it fail.
+        monkeypatch.setattr(hp_mod.json, "dumps", boom)
+        # Must not raise (the metadata step is non-critical).
+        html_page._add_data_for_js()
+
+    def test_add_data_for_js_without_head_warns(self, basic_config, mock_page, mock_mkdocs_config):
+        """_add_data_for_js logs a warning instead of crashing when <head> is absent."""
+        html_page = HTMLPage("<div class='d2'></div>", basic_config, mock_page, mock_mkdocs_config)
+        if html_page.soup.head is not None:
+            html_page.soup.head.decompose()
+        # Called directly (add_panzoom guards head): must not raise.
+        html_page._add_data_for_js()
+        assert html_page.soup.find("meta", attrs={"name": "panzoom-data"}) is None
+
+    def test_theme_name_read_from_object(self, basic_html, mock_page):
+        """The panzoom-theme meta is filled from a theme object's .name attribute."""
+        from unittest.mock import Mock
+
+        theme = Mock()
+        theme.name = "readthedocs"
+        mkdocs_config = Mock()
+        mkdocs_config.get = Mock(return_value=theme)
+
+        config = {
+            "include_selectors": [],
+            "exclude_selectors": [],
+            "selectors": [".d2"],
+        }
+        html_page = HTMLPage(basic_html, config, mock_page, mkdocs_config)
+        html_page.add_panzoom()
+        meta = html_page.soup.find("meta", attrs={"name": "panzoom-theme"})
+        assert meta is not None
+        assert meta["content"] == "readthedocs"
 
 
 class TestYamlMetadataParsing:

@@ -28,7 +28,9 @@ Build-time flow (Python, MkDocs hooks):
 2. `on_post_page` (plugin.py → html_page.py): for each rendered page that is not in the
    `exclude` list, parse with BeautifulSoup, find target elements, wrap each in a
    `panzoom-box` div with controls, and inject `<link>` + `<script>` tags pointing to
-   the runtime assets.
+   the runtime assets. Pages with no matched targets are left untouched (no CSS/JS/meta
+   injected), so diagram-free pages don't download the runtime. An element matching
+   multiple selectors is wrapped once.
 3. `on_post_build` (plugin.py): copies the runtime assets (`panzoom.css`, `zoompan.js`,
    `panzoom.min.js`) into `<site_dir>/assets/{stylesheets,javascripts}/`.
 
@@ -77,8 +79,10 @@ real logic lives there and is easy to read or run directly.
 
 ```bash
 make                  # print the help menu (default target)
-make setup            # → scripts/contributor-setup.sh (uv, .venv, deps, prek hooks, d2)
-make test [ARGS=...]  # → scripts/test.sh (pytest + coverage; ARGS forwarded to pytest)
+make setup            # → scripts/contributor-setup.sh (uv, .venv, deps, prek hooks, d2, browser)
+make test [ARGS=...]  # → scripts/test.sh (all tests + coverage; ARGS forwarded to pytest)
+make test-unit        # → only fast unit tests (-m "not e2e")
+make test-e2e         # → only headless-browser E2E tests (-m e2e, no coverage)
 make check            # → scripts/check.sh (prek; CI: changed-files only, local: --all-files)
 make prek             # → scripts/prek.sh (prek --all-files unconditionally)
 make build            # → scripts/build.sh (mkdocs build --strict)
@@ -131,13 +135,28 @@ asset URLs break).
 
 ## Testing
 
-Tests live in `tests/`, named `test_<module>.py` (one file per source module plus
-regression tests for specific bugs like `test_hint_button_*`). The test suite mocks the
-MkDocs `MkDocsConfig`, `Page`, and `File` objects rather than running a full build.
+There are two layers:
 
-When adding behavior, prefer extending the matching `tests/test_<module>.py` over creating a
-new file. The repo's pytest config (`pyproject.toml`) sets `--strict-markers`,
-`--strict-config`, and runs coverage by default.
+Unit tests live in `tests/`, named `test_<module>.py` (one file per source module plus
+regression tests for specific bugs like `test_hint_button_*`). They mock the MkDocs
+`MkDocsConfig`, `Page`, and `File` objects rather than running a full build.
+
+End-to-end tests live in `tests/e2e/`, marked `e2e`, and drive a real headless Chromium
+via Playwright. They are hermetic: `tests/e2e/conftest.py` runs the real
+`PanZoomPlugin.on_post_page` + `on_post_build` to emit a page and copy the real runtime
+assets (`zoompan.js`, `panzoom.min.js`, `panzoom.css`) into a temp site dir, then loads it
+over `file://`. Diagram targets are inline SVGs, so no Mermaid CDN, d2 binary, or git is
+needed. If Playwright or its browser is unavailable, the whole `tests/e2e` package skips
+(module-level `pytest.skip`) so `make test` stays green; install the browser with
+`playwright install chromium-headless-shell` (done automatically by `make setup`).
+
+Select layers with the marker: `make test-unit` (`-m "not e2e"`) or `make test-e2e`
+(`-m e2e`). `make test` runs both.
+
+When adding behavior, prefer extending the matching `tests/test_<module>.py` (or
+`tests/e2e/test_browser_panzoom.py` for runtime behavior) over creating a new file. The repo's
+pytest config (`pyproject.toml`) sets `--strict-markers`, `--strict-config`, and runs coverage
+by default.
 
 ## Code Style
 
@@ -161,7 +180,8 @@ cause it to find no elements (or, for `mermaid2`, raise `ConfigurationError` in 
 | `mkdocs_panzoom_plugin/`         | Plugin source                                                                 |
 | `mkdocs_panzoom_plugin/custom/`  | Bundled CSS + project JS (`zoompan.js`)                                       |
 | `mkdocs_panzoom_plugin/panzoom/` | Third-party `panzoom.min.js` (do not edit)                                    |
-| `tests/`                         | Pytest tests, one file per source module                                      |
+| `tests/`                         | Unit tests, one file per source module                                        |
+| `tests/e2e/`                     | Headless-browser E2E tests (Playwright); marked `e2e`, skip if no browser     |
 | `docs/`                          | MkDocs documentation source (Mermaid/, D2/, etc.)                             |
 | `scripts/`                       | Per-target shell scripts (setup, check, prek, test, build, serve, env, clean) |
 | `mkdocs.yml`                     | Demo site config used by `make serve` / `make build`                          |

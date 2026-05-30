@@ -310,6 +310,34 @@ flowchart TD
 
         assert result == expected
 
+    def test_extract_diagram_content_unterminated_frontmatter(self):
+        """A '---' opener without a closing fence returns the content unchanged."""
+        from mkdocs_panzoom_plugin.yaml_parser import extract_diagram_content
+
+        content = "---\ntitle: X\nflowchart TD without a closing fence"
+        assert extract_diagram_content(content) == content
+
+    def test_parse_metadata_skips_comments_and_blank_lines(self):
+        """Comment (#) and blank lines inside frontmatter are ignored."""
+        content = "---\n# a comment\n\ntitle: X\n---\nflowchart TD\n    A --> B"
+        assert parse_mermaid_yaml_metadata(content) == {"title": "X"}
+
+    def test_analyze_empty_diagram_returns_zeros(self):
+        """Empty diagram content yields all-zero complexity metrics."""
+        from mkdocs_panzoom_plugin.yaml_parser import analyze_diagram_complexity
+
+        assert analyze_diagram_complexity("") == {
+            "lines": 0,
+            "nodes": 0,
+            "edges": 0,
+            "total_chars": 0,
+        }
+
+    def test_parse_metadata_non_string_returns_empty(self):
+        """A non-string input is handled gracefully (returns empty metadata)."""
+        # content.strip() raises AttributeError on None; the parser must swallow it.
+        assert parse_mermaid_yaml_metadata(None) == {}
+
     def test_is_diagram_large_enough_small_diagram(self):
         """Test that small diagrams are correctly identified."""
         from mkdocs_panzoom_plugin.yaml_parser import is_diagram_large_enough_for_panzoom

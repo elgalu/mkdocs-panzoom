@@ -116,6 +116,35 @@ class TestPluginConfiguration:
         result = plugin.on_config(mock_mkdocs_config)
         assert result is not None
 
+    def test_on_config_plugins_list_with_options_dict(self, plugin):
+        """A plugins list using the `- name: {options}` mapping form must not crash.
+
+        Regression: the list branch previously built (entry, {}) tuples and a dict
+        entry is unhashable, raising TypeError before any ordering check ran.
+        """
+        plugin.config = {
+            "key": "alt",
+            "hint_location": "bottom",
+            "zoom_step": 0.2,
+            "initial_zoom_level": 1.0,
+        }
+        config = {"plugins": ["search", {"mermaid2": {}}, {"panzoom": {"full_screen": True}}]}
+        assert plugin.on_config(config) is config
+
+    def test_on_config_panzoom_before_mermaid2_raises(self, plugin):
+        """Panzoom listed before mermaid2 must raise ConfigurationError."""
+        from mkdocs.exceptions import ConfigurationError
+
+        plugin.config = {
+            "key": "alt",
+            "hint_location": "bottom",
+            "zoom_step": 0.2,
+            "initial_zoom_level": 1.0,
+        }
+        config = {"plugins": [{"panzoom": {}}, {"mermaid2": {}}]}
+        with pytest.raises(ConfigurationError):
+            plugin.on_config(config)
+
 
 class TestPluginBasics:
     """Test basic plugin functionality."""
@@ -265,23 +294,46 @@ class TestPluginValidation:
         result = plugin.on_config(mock_mkdocs_config)
         assert result is not None
 
-    def test_validate_config_invalid_key(self, plugin):
-        """Test validation with invalid key configuration."""
+    def test_validate_config_invalid_key_falls_back_to_alt(self, plugin):
+        """An unrecognized 'key' value is reset to the 'alt' default."""
         plugin.config = {"key": "invalid"}
+        plugin._validate_config()
+        assert plugin.config["key"] == "alt"
 
-        # Should handle invalid key values
-        # (Implementation should validate and possibly warn/error)
-        assert True  # Placeholder - actual validation depends on implementation
+    def test_validate_config_invalid_hint_location_falls_back(self, plugin):
+        """An unrecognized 'hint_location' is reset to the 'bottom' default."""
+        plugin.config = {"hint_location": "sideways"}
+        plugin._validate_config()
+        assert plugin.config["hint_location"] == "bottom"
 
-    def test_validate_config_invalid_zoom_values(self, plugin):
-        """Test validation with invalid zoom configuration."""
+    def test_validate_config_invalid_zoom_values_fall_back(self, plugin):
+        """Non-positive / non-numeric zoom values are reset to their defaults."""
         plugin.config = {
-            "initial_zoom_level": -1,  # Invalid negative zoom
-            "zoom_step": 0,  # Invalid zero step
+            "key": "alt",
+            "hint_location": "bottom",
+            "initial_zoom_level": -1,  # invalid: not positive
+            "zoom_step": 0,  # invalid: not positive
         }
+        plugin._validate_config()
+        assert plugin.config["zoom_step"] == 0.2
+        assert plugin.config["initial_zoom_level"] == 1.0
 
-        # Should handle invalid zoom values
-        assert True  # Placeholder - actual validation depends on implementation
+    def test_validate_config_non_numeric_zoom_values_fall_back(self, plugin):
+        """A non-numeric zoom value is also reset to its default."""
+        plugin.config = {
+            "key": "alt",
+            "hint_location": "bottom",
+            "zoom_step": "fast",
+            "initial_zoom_level": "big",
+        }
+        plugin._validate_config()
+        assert plugin.config["zoom_step"] == 0.2
+        assert plugin.config["initial_zoom_level"] == 1.0
+
+    def test_on_config_without_plugins_key_returns_config(self, plugin):
+        """on_config returns early (unchanged) when there is no 'plugins' key."""
+        config = {"site_url": "https://example.com"}
+        assert plugin.on_config(config) is config
 
 
 class TestPluginIntegration:
@@ -337,3 +389,43 @@ class TestPluginIntegration:
         # The mermaid div should still be there but not wrapped in panzoom-box
         assert "should be excluded" in result
         assert "should be included" in result
+
+
+class TestPluginErrorHandling:
+    """Error paths in on_post_page / on_post_build degrade gracefully."""
+
+    def test_on_post_page_returns_original_on_error(self, plugin, mock_mkdocs_config):
+        """If processing raises, the original HTML is returned unchanged."""
+        plugin.config = {"exclude": []}
+        html = "<html><body><div class='mermaid'>x</div></body></html>"
+
+        class _BoomFile:
+            @property
+            def src_path(self):
+                raise RuntimeError("boom")
+
+        class _BoomPage:
+            file = _BoomFile()
+
+        # The outer try in on_post_page must swallow the error and return input.
+        result = plugin.on_post_page(html, page=_BoomPage(), config=mock_mkdocs_config)
+        assert result == html
+
+    def test_on_post_build_copies_assets(self, plugin, tmp_path):
+        """on_post_build copies the css/js runtime assets into site_dir/assets."""
+        config = {"site_dir": str(tmp_path)}
+        plugin.on_post_build(config=config)
+
+        css = tmp_path / "assets" / "stylesheets" / "panzoom.css"
+        zoompan = tmp_path / "assets" / "javascripts" / "zoompan.js"
+        lib = tmp_path / "assets" / "javascripts" / "panzoom.min.js"
+        assert css.is_file()
+        assert zoompan.is_file()
+        assert lib.is_file()
+
+    def test_on_post_build_raises_on_bad_site_dir(self, plugin):
+        """A site_dir that can't be created surfaces the error (re-raised)."""
+        # A NUL byte in the path makes os.makedirs raise ValueError.
+        config = {"site_dir": "\x00invalid"}
+        with pytest.raises(ValueError):
+            plugin.on_post_build(config=config)

@@ -2,7 +2,6 @@
 
 import logging
 import os
-from collections import OrderedDict
 from typing import Any
 
 from mkdocs import utils
@@ -52,22 +51,22 @@ class PanZoomPlugin(BasePlugin):
             return config
 
         plugins_config = config["plugins"]
-        plugins_dict: OrderedDict[str, Any]
         if isinstance(plugins_config, list):
-            # Convert list to OrderedDict for processing
-            plugins_dict = OrderedDict(
-                (p, {}) if isinstance(p, str) else (p, {}) for p in plugins_config
-            )
-        elif isinstance(plugins_config, dict):
-            plugins_dict = OrderedDict(plugins_config)
+            # A plugins list may mix bare names ("search") with single-key option
+            # mappings ({"panzoom": {...}}). Extract the plugin name from each entry.
+            plugins: list[str] = []
+            for entry in plugins_config:
+                if isinstance(entry, str):
+                    plugins.append(entry)
+                elif isinstance(entry, dict):
+                    plugins.extend(str(name) for name in entry)
         else:
-            plugins_dict = plugins_config
-
-        plugins = [*plugins_dict]
+            # dict / OrderedDict / PluginCollection: the keys are the plugin names.
+            plugins = [str(name) for name in plugins_config]
 
         def check_position(plugin: str, plugins: list[str]) -> None:
             """Check if the panzoom plugin is positioned correctly relative to other plugins."""
-            if plugin in plugins:
+            if plugin in plugins and "panzoom" in plugins:
                 if plugins.index("panzoom") < plugins.index(plugin):
                     raise ConfigurationError(
                         f"[panzoom-plugin] The panzoom-plugin should be defined after {plugin}"
@@ -129,7 +128,9 @@ class PanZoomPlugin(BasePlugin):
             return str(html_page)
 
         except Exception as e:
-            logger.error(f"Error processing page {page.file.src_path}: {e}")
+            # Avoid re-accessing page.file.src_path here: if that access is what
+            # raised, logging it would raise again and defeat the safety net.
+            logger.error(f"Error processing page: {e}")
             # Return original output on error to prevent build failure
             return output
 

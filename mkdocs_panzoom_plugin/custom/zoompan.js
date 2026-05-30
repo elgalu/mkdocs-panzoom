@@ -81,14 +81,24 @@ function escapeFullScreen(e, box, max, min, instance) {
 }
 
 function panzoom_reset(instance, box) {
-  // Clear saved zoom state when resetting
-  if (box && box.id) {
-    clearZoomState(box.id);
+  // Suppress the debounced save handlers: moveTo/zoomAbs below emit pan/zoom
+  // events, and without this flag their debounced callbacks would re-persist an
+  // (identity) state right after we clear it, defeating the reset.
+  if (box) {
+    box.dataset.panzoomSuppressSave = "true";
   }
 
   // Reset to initial position and default browser zoom level
   instance.moveTo(0, 0);
   instance.zoomAbs(0, 0, DEFAULT_ZOOM_LEVEL);
+
+  // Clear saved zoom state after the reset-triggered events have settled.
+  if (box && box.id) {
+    setTimeout(() => {
+      clearZoomState(box.id);
+      delete box.dataset.panzoomSuppressSave;
+    }, SAVE_DEBOUNCE_DELAY_MS + 50);
+  }
 }
 
 function panzoom_zoom_in(instance, box, zoomStep = DEFAULT_ZOOM_STEP) {
@@ -315,6 +325,7 @@ function activate_zoom_pan() {
         // Debounce saving to avoid excessive localStorage writes
         clearTimeout(zoomSaveTimeout);
         zoomSaveTimeout = setTimeout(() => {
+          if (box.dataset.panzoomSuppressSave) return;
           const transform = instance.getTransform();
           saveZoomState(box.id, transform);
         }, SAVE_DEBOUNCE_DELAY_MS);
@@ -324,6 +335,7 @@ function activate_zoom_pan() {
         // Debounce saving to avoid excessive localStorage writes
         clearTimeout(panSaveTimeout);
         panSaveTimeout = setTimeout(() => {
+          if (box.dataset.panzoomSuppressSave) return;
           const transform = instance.getTransform();
           saveZoomState(box.id, transform);
         }, SAVE_DEBOUNCE_DELAY_MS);
@@ -335,20 +347,20 @@ function activate_zoom_pan() {
 }
 
 // handle themes differently
-let pz_theme = document.querySelector('meta[name="panzoom-theme"]').content;
+const pz_theme_meta = document.querySelector('meta[name="panzoom-theme"]');
+const pz_theme = pz_theme_meta ? pz_theme_meta.content : "";
 
-if (pz_theme == "material") {
-  document$.subscribe(function () {
-    const interval = setInterval(activate_zoom_pan, 1000);
-
-    setTimeout(function () {
-      clearInterval(interval);
-    }, 5000);
-  });
-} else {
+function pollActivateZoomPan() {
   const interval = setInterval(activate_zoom_pan, 1000);
-
   setTimeout(function () {
     clearInterval(interval);
   }, 5000);
+}
+
+// Material for MkDocs swaps page content via instant-loading, exposing the
+// `document$` observable. Use it when present; otherwise fall back to polling.
+if (pz_theme == "material" && typeof document$ !== "undefined") {
+  document$.subscribe(pollActivateZoomPan);
+} else {
+  pollActivateZoomPan();
 }

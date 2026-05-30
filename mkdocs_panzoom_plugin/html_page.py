@@ -57,6 +57,13 @@ class HTMLPage:
     def add_panzoom(self) -> None:
         """Add pan-zoom functionality to identified containers."""
         try:
+            # Nothing matched on this page: skip wrapping and, crucially, skip
+            # injecting the CSS/JS/meta assets. Otherwise every diagram-free page
+            # would download panzoom.min.js + zoompan.js + panzoom.css for nothing.
+            if not self.containers:
+                logger.debug("No panzoom targets on this page; skipping asset injection")
+                return
+
             for idx, element in enumerate(self.containers):
                 panzoom_box = create_panzoom_box(self.soup, self.config, idx)
                 element.wrap(panzoom_box)
@@ -150,6 +157,12 @@ class HTMLPage:
 
             self.config.update({"selectors": list(final_selectors)})
 
+            # Track elements already collected so an element matching more than one
+            # selector (e.g. a div with both ".d2" and a custom include class) is
+            # wrapped once, not nested in multiple panzoom-boxes. Identity (id()) is
+            # used because BeautifulSoup Tags compare by value, not by node.
+            seen_ids: set[int] = set()
+
             for selector in self.config.get("selectors", []):
                 try:
                     found_elements = []
@@ -169,7 +182,10 @@ class HTMLPage:
 
                     # Filter elements based on per-diagram panzoom settings
                     for elem in found_elements:
+                        if id(elem) in seen_ids:
+                            continue
                         if self._should_apply_panzoom(elem):
+                            seen_ids.add(id(elem))
                             output.append(elem)
                         else:
                             logger.debug(

@@ -27,13 +27,14 @@ def create_info_box(soup: BeautifulSoup, config: dict[str, Any]) -> Tag:
         "alt": f'Press "Alt" / "Option"{action_text}',
         "ctrl": f'Press "Ctrl"{action_text}',
         "shift": f'Press "Shift"{action_text}',
+        # With no modifier key, pan/zoom is always active and cannot be toggled off,
+        # so the "press X to disable" framing does not apply.
+        "none": "Pan & Zoom is always active",
     }
 
     # Ensure key is a string for the get() call
     key_str = str(key) if key is not None else "alt"
-    info_box.string = key_messages.get(
-        key_str, f"Press modifier key{action_text}"
-    )  # info_box.string = 'Press "Alt" / "Option" to enable Pan & Zoom'
+    info_box.string = key_messages.get(key_str, f"Press a modifier key{action_text}")
 
     return info_box
 

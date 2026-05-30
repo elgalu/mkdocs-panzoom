@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help setup all hooks check prek clean env build serve test tests docs
+.PHONY: help setup all hooks check prek clean env build serve test tests test-unit test-e2e docs
 
 help: ## Show this help message
 	@echo "mkdocs-panzoom-plugin Makefile"
@@ -21,10 +21,16 @@ check: ## Run prek hooks (CI: changed files only; local: --all-files)
 prek: ## Run prek on all files unconditionally
 	@./scripts/prek.sh
 
-test: ## Run pytest with coverage (extra args via ARGS=...)
+test: ## Run all pytest tests with coverage (extra args via ARGS=...)
 	@./scripts/test.sh $(ARGS)
 
 tests: test ## Alias for 'test'
+
+test-unit: ## Run only the fast unit tests (skip headless-browser E2E)
+	@./scripts/test.sh -m "not e2e" $(ARGS)
+
+test-e2e: ## Run only the headless-browser E2E tests
+	@./scripts/test.sh -m e2e --no-cov $(ARGS)
 
 build: ## Build demo docs (mkdocs build --strict, output: site/)
 	@./scripts/build.sh

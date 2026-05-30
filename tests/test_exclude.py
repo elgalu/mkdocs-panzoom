@@ -1,6 +1,6 @@
 """Test the exclude module functionality."""
 
-from mkdocs_panzoom_plugin.exclude import exclude
+from mkdocs_panzoom_plugin.exclude import exclude, include
 
 
 class TestExcludeFunctionality:
@@ -127,3 +127,19 @@ class TestExcludeFunctionality:
         assert exclude("文档.md", patterns) is True
         assert exclude("café.md", patterns) is True
         assert exclude("regular.md", patterns) is False
+
+
+class TestIncludeFunctionality:
+    """Test the include() glob matcher (same engine as exclude())."""
+
+    def test_include_match(self):
+        """A path matching a glob returns True."""
+        assert include("docs/page.md", ["docs/*.md"]) is True
+
+    def test_include_no_match(self):
+        """A path matching nothing returns False."""
+        assert include("docs/page.md", ["other/*.md"]) is False
+
+    def test_include_empty_patterns(self):
+        """No patterns means no match."""
+        assert include("docs/page.md", []) is False

@@ -76,6 +76,12 @@ install_hooks() {
     prek install --install-hooks
 }
 
+d2_ok() {
+    # `d2 --version` is not enough: a wrong-arch binary exits non-zero with
+    # "Exec format error". Treat only a clean version print as a working install.
+    command_exists d2 && d2 --version >/dev/null 2>&1
+}
+
 install_d2() {
     # d2 is only needed locally for `make serve` / `make build` to render D2 diagrams
     # in the demo docs. Skip in CI to keep the build fast.
@@ -86,7 +92,7 @@ install_d2() {
     if ! grep -q "mkdocs-d2-plugin" pyproject.toml 2>/dev/null; then
         return 0
     fi
-    if command_exists d2; then
+    if d2_ok; then
         log_info "d2 is already installed: $(d2 --version 2>&1 | head -n1)"
         return 0
     fi
@@ -94,8 +100,45 @@ install_d2() {
     log_info "Installing d2 (needed by mkdocs-d2-plugin for the demo docs)..."
     if [ "$(uname)" == 'Darwin' ] && command_exists brew; then
         brew install d2
-    else
-        curl -fsSL https://d2lang.com/install.sh | sh
+        return 0
+    fi
+
+    # The upstream install.sh has misdetected arch on some hosts (pulling an
+    # x86-64 build onto arm64), so install the matching release tarball directly.
+    local os arch ver
+    os=$(uname | tr '[:upper:]' '[:lower:]')
+    case "$(uname -m)" in
+        aarch64 | arm64) arch="arm64" ;;
+        x86_64 | amd64) arch="amd64" ;;
+        *) arch="" ;;
+    esac
+    ver="v0.7.1"
+    if [ -n "$arch" ] && command_exists curl; then
+        local tmp
+        tmp=$(mktemp -d)
+        if curl -fsSL -o "$tmp/d2.tar.gz" \
+            "https://github.com/terrastruct/d2/releases/download/${ver}/d2-${ver}-${os}-${arch}.tar.gz" \
+            && tar xzf "$tmp/d2.tar.gz" -C "$tmp"; then
+            mkdir -p "$HOME/.local/bin"
+            cp "$tmp/d2-${ver}/bin/d2" "$HOME/.local/bin/d2"
+            chmod +x "$HOME/.local/bin/d2"
+            rm -rf "$tmp"
+            log_info "d2 installed to ~/.local/bin/d2 ($(d2 --version 2>&1 | head -n1))"
+            return 0
+        fi
+        rm -rf "$tmp"
+        log_warn "Direct d2 download failed; falling back to upstream installer."
+    fi
+    curl -fsSL https://d2lang.com/install.sh | sh
+}
+
+install_browser() {
+    # Playwright drives the headless-browser E2E tests. Install the Chromium
+    # headless shell (smaller than full Chromium). Non-fatal if it fails so the
+    # rest of setup still succeeds; the E2E suite skips when no browser is present.
+    log_info "Installing Chromium for Playwright E2E tests..."
+    if ! playwright install chromium-headless-shell; then
+        log_warn "Playwright browser install failed; E2E tests will be skipped."
     fi
 }
 
@@ -105,6 +148,7 @@ main() {
     sync_deps
     install_hooks
     install_d2
+    install_browser
     log_success "Setup complete. Run 'make check' to verify, or 'make help' to see all targets."
 }
 
